@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
-import { Instagram, MapPin, MessageCircle, Flame, Heart, Shield, Clock } from 'lucide-react';
+import { Instagram, MapPin, MessageCircle, Flame, Heart, Shield, Clock, Loader2 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 import { nigerianStates } from '../data/mockData';
+import { fireCondomAPI } from '../services/api';
 
 const LandingPage = () => {
   const [formData, setFormData] = useState({
@@ -14,14 +15,41 @@ const LandingPage = () => {
     email: '',
     state: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [storeLocations, setStoreLocations] = useState({});
+
+  // Load products and store data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load products
+        const productsResult = await fireCondomAPI.getProducts();
+        if (productsResult.success) {
+          setProducts(productsResult.data);
+        }
+
+        // Load store locations
+        const storesResult = await fireCondomAPI.getStores();
+        if (storesResult.success) {
+          setStoreLocations(storesResult.data);
+        }
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     element?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (!formData.nickname || !formData.email || !formData.state) {
       toast({
         title: "Please fill all fields",
@@ -29,19 +57,98 @@ const LandingPage = () => {
       });
       return;
     }
-    
-    // Mock submission
-    toast({
-      title: "Welcome to the Fire Club! 🔥",
-      description: "You'll receive exclusive tips and offers soon."
-    });
-    
-    // Reset form
-    setFormData({ nickname: '', email: '', state: '' });
+
+    setIsLoading(true);
+
+    try {
+      // Get UTM parameters from URL if available
+      const urlParams = new URLSearchParams(window.location.search);
+      const signupData = {
+        ...formData,
+        utm_source: urlParams.get('utm_source'),
+        utm_campaign: urlParams.get('utm_campaign')
+      };
+
+      const result = await fireCondomAPI.signup(signupData);
+      
+      if (result.success) {
+        toast({
+          title: result.data.message || "Welcome to the Fire Club! 🔥",
+          description: "You'll receive exclusive tips and offers soon."
+        });
+        
+        // Reset form
+        setFormData({ nickname: '', email: '', state: '' });
+      } else {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error", 
+        description: "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openInstagramDM = () => {
     window.open('https://instagram.com/firecondomng', '_blank');
+  };
+
+  // Default products if API fails
+  const defaultProducts = [
+    {
+      id: 'xtra',
+      name: 'Fire Xtra',
+      variant: 'Longer Lasting Pleasure',
+      color: 'blue',
+      features: [
+        'Super-dotted texture',
+        'Flavored for enhanced taste',
+        'Extra time lubricant',
+        '3 condoms per pack'
+      ],
+      description: 'Designed for extended pleasure with super-dotted texture and extra time lubricant.'
+    },
+    {
+      id: 'xtacy',
+      name: 'Fire Xtacy',
+      variant: 'Greater Stimulation',
+      color: 'green',
+      features: [
+        'Contoured design',
+        'Flavored for pleasure',
+        'Ribbed & studded',
+        '3 condoms per pack'
+      ],
+      description: 'Contoured design with ribbed and studded texture for maximum stimulation.'
+    },
+    {
+      id: 'xotica',
+      name: 'Fire Xotica',
+      variant: 'More Intensity',
+      color: 'red',
+      features: [
+        'Contoured design',
+        'Strawberry flavored',
+        'Ribbed texture',
+        'Super dotted'
+      ],
+      description: 'Strawberry flavored with super dotted and ribbed texture for intense pleasure.'
+    }
+  ];
+
+  const displayProducts = products.length > 0 ? products : defaultProducts;
+  const displayStores = Object.keys(storeLocations).length > 0 ? storeLocations : {
+    'Lagos': ['Shoprite Ikeja', 'Justrite Pharmacy VI', 'All major pharmacies'],
+    'Abuja': ['Sahad Stores', 'All convenience stores'],
+    'Port Harcourt': ['Major pharmacies', 'Convenience stores']
   };
 
   return (
@@ -97,74 +204,42 @@ const LandingPage = () => {
           </p>
           
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Fire Xtra */}
-            <Card className="bg-gradient-to-b from-blue-900/50 to-blue-800/30 border-blue-500/30 hover:border-blue-400 transition-all duration-300 transform hover:scale-105">
-              <CardContent className="p-8 text-center">
-                <div className="w-32 h-32 mx-auto mb-6 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Clock className="w-16 h-16 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-4 text-blue-300">Fire Xtra</h3>
-                <Badge className="bg-blue-600 text-white mb-4">Longer Lasting Pleasure</Badge>
-                
-                <ul className="text-left space-y-3 mb-8 text-gray-300">
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-blue-400" />Super-dotted texture</li>
-                  <li className="flex items-center"><Heart className="w-4 h-4 mr-2 text-blue-400" />Flavored for enhanced taste</li>
-                  <li className="flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-400" />Extra time lubricant</li>
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-blue-400" />3 condoms per pack</li>
-                </ul>
-                
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                  Learn More
-                </Button>
-              </CardContent>
-            </Card>
+            {displayProducts.map((product, index) => {
+              const colorMap = {
+                blue: { bg: 'from-blue-900/50 to-blue-800/30', border: 'border-blue-500/30 hover:border-blue-400', icon: 'bg-blue-600', text: 'text-blue-300', accent: 'text-blue-400', button: 'bg-blue-600 hover:bg-blue-700' },
+                green: { bg: 'from-green-900/50 to-green-800/30', border: 'border-green-500/30 hover:border-green-400', icon: 'bg-green-600', text: 'text-green-300', accent: 'text-green-400', button: 'bg-green-600 hover:bg-green-700' },
+                red: { bg: 'from-red-900/50 to-red-800/30', border: 'border-red-500/30 hover:border-red-400', icon: 'bg-red-600', text: 'text-red-300', accent: 'text-red-400', button: 'bg-red-600 hover:bg-red-700' }
+              };
+              
+              const colors = colorMap[product.color] || colorMap.red;
+              const IconComponent = product.color === 'blue' ? Clock : (product.color === 'green' ? Heart : Flame);
 
-            {/* Fire Xtacy */}
-            <Card className="bg-gradient-to-b from-green-900/50 to-green-800/30 border-green-500/30 hover:border-green-400 transition-all duration-300 transform hover:scale-105">
-              <CardContent className="p-8 text-center">
-                <div className="w-32 h-32 mx-auto mb-6 bg-green-600 rounded-lg flex items-center justify-center">
-                  <Heart className="w-16 h-16 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-4 text-green-300">Fire Xtacy</h3>
-                <Badge className="bg-green-600 text-white mb-4">Greater Stimulation</Badge>
-                
-                <ul className="text-left space-y-3 mb-8 text-gray-300">
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-green-400" />Contoured design</li>
-                  <li className="flex items-center"><Heart className="w-4 h-4 mr-2 text-green-400" />Flavored for pleasure</li>
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-green-400" />Ribbed & studded</li>
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-green-400" />3 condoms per pack</li>
-                </ul>
-                
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
-                  Learn More
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Fire Xotica */}
-            <Card className="bg-gradient-to-b from-red-900/50 to-red-800/30 border-red-500/30 hover:border-red-400 transition-all duration-300 transform hover:scale-105">
-              <CardContent className="p-8 text-center">
-                <div className="w-32 h-32 mx-auto mb-6 bg-red-600 rounded-lg flex items-center justify-center">
-                  <Flame className="w-16 h-16 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-4 text-red-300">Fire Xotica</h3>
-                <Badge className="bg-red-600 text-white mb-4">More Intensity</Badge>
-                
-                <ul className="text-left space-y-3 mb-8 text-gray-300">
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-red-400" />Contoured design</li>
-                  <li className="flex items-center"><Heart className="w-4 h-4 mr-2 text-red-400" />Strawberry flavored</li>
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-red-400" />Ribbed texture</li>
-                  <li className="flex items-center"><Shield className="w-4 h-4 mr-2 text-red-400" />Super dotted</li>
-                </ul>
-                
-                <Button className="w-full bg-red-600 hover:bg-red-700 text-white">
-                  Learn More
-                </Button>
-              </CardContent>
-            </Card>
+              return (
+                <Card key={product.id} className={`bg-gradient-to-b ${colors.bg} ${colors.border} transition-all duration-300 transform hover:scale-105`}>
+                  <CardContent className="p-8 text-center">
+                    <div className={`w-32 h-32 mx-auto mb-6 ${colors.icon} rounded-lg flex items-center justify-center`}>
+                      <IconComponent className="w-16 h-16 text-white" />
+                    </div>
+                    
+                    <h3 className={`text-2xl font-bold mb-4 ${colors.text}`}>{product.name}</h3>
+                    <Badge className={`${colors.icon} text-white mb-4`}>{product.variant}</Badge>
+                    
+                    <ul className="text-left space-y-3 mb-8 text-gray-300">
+                      {product.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-center">
+                          <Shield className={`w-4 h-4 mr-2 ${colors.accent}`} />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    
+                    <Button className={`w-full ${colors.button} text-white`}>
+                      Learn More
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -186,6 +261,7 @@ const LandingPage = () => {
                 placeholder="Your nickname"
                 value={formData.nickname}
                 onChange={(e) => setFormData({...formData, nickname: e.target.value})}
+                disabled={isLoading}
                 className="w-full p-4 text-lg bg-black/50 border-red-500/50 focus:border-red-400 text-white placeholder-gray-400"
               />
             </div>
@@ -196,12 +272,17 @@ const LandingPage = () => {
                 placeholder="Your email address"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
+                disabled={isLoading}
                 className="w-full p-4 text-lg bg-black/50 border-red-500/50 focus:border-red-400 text-white placeholder-gray-400"
               />
             </div>
             
             <div>
-              <Select value={formData.state} onValueChange={(value) => setFormData({...formData, state: value})}>
+              <Select 
+                value={formData.state} 
+                onValueChange={(value) => setFormData({...formData, state: value})}
+                disabled={isLoading}
+              >
                 <SelectTrigger className="w-full p-4 text-lg bg-black/50 border-red-500/50 focus:border-red-400 text-white">
                   <SelectValue placeholder="Select your state" />
                 </SelectTrigger>
@@ -218,9 +299,17 @@ const LandingPage = () => {
             <Button 
               type="submit"
               size="lg"
-              className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-6 text-xl font-bold transform transition-all duration-300 hover:scale-105"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-6 text-xl font-bold transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              I'm In 🔥
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                  Joining Fire Club...
+                </div>
+              ) : (
+                "I'm In 🔥"
+              )}
             </Button>
           </form>
         </div>
@@ -242,11 +331,9 @@ const LandingPage = () => {
                 <MapPin className="w-12 h-12 text-red-400 mx-auto mb-4" />
                 <h3 className="text-2xl font-bold mb-4 text-white">Major Cities</h3>
                 <ul className="text-gray-300 space-y-2">
-                  <li>• Lagos - All major pharmacies</li>
-                  <li>• Abuja - Convenience stores</li>
-                  <li>• Port Harcourt - Pharmacies</li>
-                  <li>• Kano - Selected stores</li>
-                  <li>• Ibadan - Major outlets</li>
+                  {Object.entries(displayStores).map(([city, stores]) => (
+                    <li key={city}>• {city} - {stores[0] || 'Major outlets'}</li>
+                  ))}
                 </ul>
               </CardContent>
             </Card>
