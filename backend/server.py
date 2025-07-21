@@ -1,14 +1,16 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, EmailStr, validator
+from typing import List, Optional, Dict
 import uuid
 from datetime import datetime
+import re
 
 
 ROOT_DIR = Path(__file__).parent
@@ -25,6 +27,14 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Nigerian States for validation
+NIGERIAN_STATES = [
+    'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 
+    'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 
+    'FCT - Abuja', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 
+    'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 
+    'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
+]
 
 # Define Models
 class StatusCheck(BaseModel):
@@ -34,6 +44,53 @@ class StatusCheck(BaseModel):
 
 class StatusCheckCreate(BaseModel):
     client_name: str
+
+class EmailSignupCreate(BaseModel):
+    nickname: str = Field(..., min_length=2, max_length=50)
+    email: EmailStr
+    state: str
+    utm_source: Optional[str] = None
+    utm_campaign: Optional[str] = None
+
+    @validator('nickname')
+    def validate_nickname(cls, v):
+        # Remove any potentially harmful characters
+        v = re.sub(r'[<>\"\'&]', '', v.strip())
+        if len(v) < 2:
+            raise ValueError('Nickname must be at least 2 characters long')
+        return v
+
+    @validator('state')
+    def validate_state(cls, v):
+        if v not in NIGERIAN_STATES:
+            raise ValueError('Invalid Nigerian state')
+        return v
+
+class EmailSignupResponse(BaseModel):
+    id: str
+    nickname: str
+    email: str
+    state: str
+    createdAt: datetime
+    utm_source: Optional[str] = None
+    utm_campaign: Optional[str] = None
+
+class Product(BaseModel):
+    id: str
+    name: str
+    variant: str
+    color: str
+    features: List[str]
+    description: str
+
+class StoreLocation(BaseModel):
+    state: str
+    stores: List[str]
+
+class ApiResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[Dict] = None
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
